@@ -7,7 +7,7 @@
 //
 
 import AVFoundation
-import SwiftAudioPlayer
+import SwiftAudioPlayerKuama
 import UIKit
 
 class ViewController: UIViewController {

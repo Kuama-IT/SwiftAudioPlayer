@@ -81,14 +81,14 @@ func ConverterListener(_: AudioConverterRef, _ packetCount: UnsafeMutablePointer
 
     selfAudioConverter.converterBuffer = ioData.pointee.mBuffers.mData
 
-    if let lastDescription = selfAudioConverter.converterDescriptions {
-        lastDescription.deallocate()
-    }
-
     // Handle packet descriptions for compressed formats (MP3, AAC, etc)
     let fileFormatDescription = fileAudioFormat.streamDescription.pointee
     if fileFormatDescription.mFormatID != kAudioFormatLinearPCM {
         if outPacketDescriptions?.pointee == nil {
+            if let lastDescription = selfAudioConverter.converterDescriptions {
+                lastDescription.deallocate()
+            }
+
             outPacketDescriptions?.pointee = UnsafeMutablePointer<AudioStreamPacketDescription>.allocate(capacity: 1)
         }
         outPacketDescriptions?.pointee?.pointee.mDataByteSize = UInt32(packetByteCount)

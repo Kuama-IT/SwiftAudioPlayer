@@ -43,7 +43,10 @@ class DirectorThreadSafeClosuresDeprecated<P> {
     }
 
     func broadcast(key: Key, payload: P) {
-        queue.sync {
+        queue.sync { [weak self] in
+            guard let self = self else {
+                return
+            }
             self.cache[key] = payload
             var iterator = self.closures.makeIterator()
             while let element = iterator.next() {

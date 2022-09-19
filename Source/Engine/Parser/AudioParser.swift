@@ -98,7 +98,7 @@ class AudioParser: AudioParsable {
         let predictedCount = AVAudioPacketCount(Double(sizeOfFileInBytes) / bytesPerPacket)
 
         guard networkProgress != 1.0 else {
-            return max(AVAudioPacketCount(audioPackets.count), predictedCount)
+            return min(AVAudioPacketCount(audioPackets.count), predictedCount)
         }
 
         return predictedCount
@@ -190,11 +190,15 @@ class AudioParser: AudioParsable {
         // Check if we've reached the end of the packets. We have two scenarios:
         //     1. We've reached the end of the packet data and the file has been completely parsed
         //     2. We've reached the end of the data we currently have downloaded, but not the file
+
         let packetIndex = index - indexSeekOffset
 
         var exception: ParserError?
         var packet: (AudioStreamPacketDescription?, Data) = (nil, Data())
-        lockQueue.sync {
+        lockQueue.sync { [weak self] in
+            guard let self = self else {
+                return
+            }
             if packetIndex >= self.audioPackets.count {
                 if isParsingComplete {
                     exception = ParserError.readerAskingBeyondEndOfFile
@@ -217,7 +221,10 @@ class AudioParser: AudioParsable {
     }
 
     private func determineIfMoreDataNeedsToBeParsed(index: AVAudioPacketCount) {
-        lockQueue.sync {
+        lockQueue.sync { [weak self] in
+            guard let self = self else {
+                return
+            }
             if index > self.audioPackets.count - self.MIN_PACKETS_TO_HAVE_AVAILABLE_BEFORE_THROTTLING_PARSING {
                 self.processNextDataPacket()
             }
@@ -227,7 +234,10 @@ class AudioParser: AudioParsable {
     func tellSeek(toIndex index: AVAudioPacketCount) {
         // Already within the processed audio packets. Ignore
         var isIndexValid = true
-        lockQueue.sync {
+        lockQueue.sync { [weak self] in
+            guard let self = self else {
+                return
+            }
             if self.indexSeekOffset <= index, index < self.audioPackets.count + Int(self.indexSeekOffset) {
                 isIndexValid = false
             }

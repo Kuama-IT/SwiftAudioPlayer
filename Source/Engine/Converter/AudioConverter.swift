@@ -35,6 +35,7 @@ import Foundation
 
 protocol AudioConvertable {
     var engineAudioFormat: AVAudioFormat { get }
+    var initialized: Bool { get }
 
     init(withRemoteUrl url: AudioURL, toEngineAudioFormat: AVAudioFormat, withPCMBufferSize size: AVAudioFrameCount) throws
     func pullBuffer() throws -> AVAudioPCMBuffer
@@ -74,6 +75,11 @@ class AudioConverter: AudioConvertable {
 
     // Field
     var converter: AudioConverterRef? // set by AudioConverterNew
+
+    public var initialized: Bool {
+        converter != nil
+    }
+
     var currentAudioPacketIndex: AVAudioPacketCount = 0
 
     // use to store reference to the allocated buffers from the converter to properly deallocate them before the next packet is being converted
