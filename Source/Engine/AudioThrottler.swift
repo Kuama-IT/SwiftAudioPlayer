@@ -30,7 +30,7 @@ protocol AudioThrottleDelegate: AnyObject {
 }
 
 protocol AudioThrottleable {
-    init(withRemoteUrl url: AudioURL, withDelegate delegate: AudioThrottleDelegate)
+    init(withRemoteUrl url: AudioURL, withDelegate delegate: AudioThrottleDelegate, withAudioDataManager audioDataManager: AudioDataManager, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector)
     func pullNextDataPacket(_ callback: @escaping (Data?) -> Void)
     func tellSeek(offset: UInt64)
     func pollRangeOfBytesAvailable() -> (UInt64, UInt64)
@@ -66,11 +66,14 @@ class AudioThrottler: AudioThrottleable {
 
     var largestPollingOffsetDifference: UInt64 = 1
 
-    required init(withRemoteUrl url: AudioURL, withDelegate delegate: AudioThrottleDelegate) {
+    private var audioDataManager: AudioDataManager
+
+    required init(withRemoteUrl url: AudioURL, withDelegate delegate: AudioThrottleDelegate, withAudioDataManager audioDataManager: AudioDataManager, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector) {
         self.url = url
         self.delegate = delegate
+        self.audioDataManager = audioDataManager
 
-        AudioDataManager.shared.startStream(withRemoteURL: url) { [weak self] (pto: StreamProgressPTO) in
+        audioDataManager.startStream(withRemoteURL: url) { [weak self] (pto: StreamProgressPTO) in
             guard let self = self else { return }
             Log.debug("received stream data of size \(pto.getData().count) and progress: \(pto.getProgress())")
 
@@ -80,7 +83,7 @@ class AudioThrottler: AudioThrottleable {
 
             self.queue.async { [weak self] in
                 self?.networkData.append(pto.getData())
-                StreamingDownloadDirector.shared.didUpdate(url.key, networkStreamProgress: pto.getProgress())
+                streamingDownloadDirector.didUpdate(url.key, networkStreamProgress: pto.getProgress())
             }
         }
     }
@@ -116,7 +119,7 @@ class AudioThrottler: AudioThrottleable {
         if shouldStartNewStream {
             byteOffsetBecauseOfSeek = UInt(offset)
             lastSentDataPacketIndex = -1
-            AudioDataManager.shared.seekStream(withRemoteURL: url, toByteOffset: offset)
+            audioDataManager.seekStream(withRemoteURL: url, toByteOffset: offset)
 
             networkData = []
             return
@@ -147,7 +150,7 @@ class AudioThrottler: AudioThrottleable {
     }
 
     func invalidate() {
-        AudioDataManager.shared.deleteStream(withRemoteURL: url)
+        audioDataManager.deleteStream(withRemoteURL: url)
     }
 }
 

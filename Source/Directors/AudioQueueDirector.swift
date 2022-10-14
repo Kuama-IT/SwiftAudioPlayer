@@ -7,10 +7,9 @@
 
 import Foundation
 
-class AudioQueueDirector {
-    static let shared = AudioQueueDirector()
+public class AudioQueueDirector {
     var closures: DirectorThreadSafeClosures<URL> = DirectorThreadSafeClosures()
-    private init() {}
+    init() {}
 
     func create() {}
 

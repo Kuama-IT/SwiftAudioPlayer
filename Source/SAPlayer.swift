@@ -39,6 +39,14 @@ public class SAPlayer {
 
     private var presenter: SAPlayerPresenter!
     private var player: AudioEngine?
+    public let audioDataManager: AudioDataManager = .init()
+    public let audioClockDirector: AudioClockDirector = .init()
+    public let audioQueueDirector: AudioQueueDirector = .init()
+    public let streamingDownloadDirector: StreamingDownloadDirector = .init()
+
+    public private(set) lazy var downloader: Downloader = .init(player: self)
+    public private(set) lazy var updates: Updates = .init(player: self)
+    public private(set) lazy var downloadProgressDirector = DownloadProgressDirector(audioDataManager: audioDataManager)
 
     /**
      Access the engine of the player. Engine is nil if player has not been initialized with audio.
@@ -52,7 +60,13 @@ public class SAPlayer {
      */
     public var HTTPHeaderFields: [String: String]? {
         didSet {
-            AudioDataManager.shared.setHTTPHeaderFields(HTTPHeaderFields)
+            audioDataManager.setHTTPHeaderFields(HTTPHeaderFields)
+        }
+    }
+
+    public var allowUsingCellularData: Bool = true {
+        didSet {
+            downloader.allowUsingCellularData = allowUsingCellularData
         }
     }
 
@@ -219,7 +233,7 @@ public class SAPlayer {
 
     public init(engine: AVAudioEngine) {
         self.engine = engine
-        presenter = SAPlayerPresenter(delegate: self)
+        presenter = SAPlayerPresenter(delegate: self, audioClockDirector: audioClockDirector, audioQueueDirector: audioQueueDirector)
 
         // https://forums.developer.apple.com/thread/5874
         // https://forums.developer.apple.com/thread/6050
@@ -531,11 +545,19 @@ public extension SAPlayer {
 
 extension SAPlayer: SAPlayerDelegate {
     internal func startAudioDownloaded(withSavedUrl url: AudioURL) {
-        player = AudioDiskEngine(withSavedUrl: url, delegate: presenter, engine: engine)
+        player = AudioDiskEngine(withSavedUrl: url, delegate: presenter, engine: engine, audioClockDirector: audioClockDirector)
     }
 
     internal func startAudioStreamed(withRemoteUrl url: AudioURL, bitrate: SAPlayerBitrate) {
-        player = AudioStreamEngine(withRemoteUrl: url, delegate: presenter, bitrate: bitrate, engine: engine)
+        player = AudioStreamEngine(
+            withRemoteUrl: url,
+            delegate: presenter,
+            bitrate: bitrate,
+            engine: engine,
+            withAudioClockDirector: audioClockDirector,
+            withStreamingDownloadDirector: streamingDownloadDirector,
+            withAudioDataManager: audioDataManager
+        )
     }
 
     internal func clearEngine() {

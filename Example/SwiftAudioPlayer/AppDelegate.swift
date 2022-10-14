@@ -40,7 +40,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-    func application(_: UIApplication, handleEventsForBackgroundURLSession _: String, completionHandler: @escaping () -> Void) {
-        SAPlayer.Downloader.setBackgroundCompletionHandler(completionHandler)
+    func application(_: UIApplication, handleEventsForBackgroundURLSession _: String, completionHandler _: @escaping () -> Void) {
+        // Keep as reminder, but how can we access the player here? Or can we hook on this in other parts of our code?
+        // SAPlayer.Downloader(manager: AudioDataManager()).setBackgroundCompletionHandler(completionHandler)
     }
 }

@@ -80,7 +80,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        SAPlayer.Downloader.allowUsingCellularData = true
+        player.allowUsingCellularData = true
         player.HTTPHeaderFields = ["User-Agent": "foobar"]
 
         player.DEBUG_MODE = true
@@ -110,9 +110,9 @@ class ViewController: UIViewController {
     }
 
     func testMultiAudioSaved() {
-        SAPlayer.Downloader.downloadAudio(on: player1, withRemoteUrl: longTrackUrl) { longSavedUrl, _ in
+        player1.downloader.downloadAudio(withRemoteUrl: longTrackUrl) { longSavedUrl, _ in
 
-            SAPlayer.Downloader.downloadAudio(on: self.player2, withRemoteUrl: self.yodelTrackUrl) { savedUrl, _ in
+            self.player2.downloader.downloadAudio(withRemoteUrl: self.yodelTrackUrl) { savedUrl, _ in
                 self.player1.startSavedAudio(withSavedUrl: longSavedUrl)
                 self.player2.startSavedAudio(withSavedUrl: savedUrl)
 
@@ -167,20 +167,20 @@ class ViewController: UIViewController {
 
     func checkIfAudioDownloaded() {
         for i in 0 ... 2 {
-            if let savedUrl = SAPlayer.Downloader.getSavedUrl(forRemoteUrl: selectedAudio.getUrl(atIndex: i)) {
+            if let savedUrl = player.downloader.getSavedUrl(forRemoteUrl: selectedAudio.getUrl(atIndex: i)) {
                 selectedAudio.addSavedUrl(savedUrl, atIndex: i)
             }
         }
     }
 
     func subscribeToChanges() {
-        durationId = SAPlayer.Updates.Duration.subscribe { [weak self] duration in
+        durationId = player.updates.duration.subscribe { [weak self] duration in
             guard let self = self else { return }
             self.durationLabel.text = SAPlayer.prettifyTimestamp(duration)
             self.duration = duration
         }
 
-        elapsedId = SAPlayer.Updates.ElapsedTime.subscribe { [weak self] position in
+        elapsedId = player.updates.elapsedTime.subscribe { [weak self] position in
             guard let self = self else { return }
 
             self.currentTimestampLabel.text = SAPlayer.prettifyTimestamp(position)
@@ -190,7 +190,7 @@ class ViewController: UIViewController {
             self.scrubberSlider.value = Float(position / self.duration)
         }
 
-        downloadId = SAPlayer.Updates.AudioDownloading.subscribe(on: player) { [weak self] url, progress in
+        downloadId = player.updates.audioDownloading.subscribe(on: player) { [weak self] url, progress in
             guard let self = self else { return }
             guard url == self.selectedAudio.url else { return }
 
@@ -203,7 +203,7 @@ class ViewController: UIViewController {
             }
         }
 
-        bufferId = SAPlayer.Updates.StreamingBuffer.subscribe { [weak self] buffer in
+        bufferId = player.updates.streamingBuffer.subscribe { [weak self] buffer in
             guard let self = self else { return }
 
             self.bufferProgress.progress = Float(buffer.bufferingProgress)
@@ -217,7 +217,7 @@ class ViewController: UIViewController {
             self.isPlayable = buffer.isReadyForPlaying
         }
 
-        playingStatusId = SAPlayer.Updates.PlayingStatus.subscribe { [weak self] playing in
+        playingStatusId = player.updates.playingStatus.subscribe { [weak self] playing in
             guard let self = self else { return }
 
             self.playbackStatus = playing
@@ -244,7 +244,7 @@ class ViewController: UIViewController {
             }
         }
 
-        queueId = SAPlayer.Updates.AudioQueue.subscribe { [weak self] forthcomingPlaybackUrl in
+        queueId = player.updates.audioQueue.subscribe { [weak self] forthcomingPlaybackUrl in
             guard let self = self else { return }
             /// we update the selected audio. this is a little contrived, but allows us to update outlets
             if let indexFound = self.selectedAudio.getIndex(forURL: forthcomingPlaybackUrl) {
@@ -263,12 +263,12 @@ class ViewController: UIViewController {
               let bufferId = bufferId,
               let playingStatusId = playingStatusId else { return }
 
-        SAPlayer.Updates.Duration.unsubscribe(durationId)
-        SAPlayer.Updates.ElapsedTime.unsubscribe(elapsedId)
-        SAPlayer.Updates.AudioDownloading.unsubscribe(downloadId)
-        SAPlayer.Updates.AudioQueue.unsubscribe(queueId)
-        SAPlayer.Updates.StreamingBuffer.unsubscribe(bufferId)
-        SAPlayer.Updates.PlayingStatus.unsubscribe(playingStatusId)
+        player.updates.duration.unsubscribe(durationId)
+        player.updates.elapsedTime.unsubscribe(elapsedId)
+        player.updates.audioDownloading.unsubscribe(downloadId)
+        player.updates.audioQueue.unsubscribe(queueId)
+        player.updates.streamingBuffer.unsubscribe(bufferId)
+        player.updates.playingStatus.unsubscribe(playingStatusId)
     }
 
     @IBAction func scrubberStartedSeeking(_: UISlider) {
@@ -312,8 +312,8 @@ class ViewController: UIViewController {
 
     @IBAction func downloadTouched(_: Any) {
         if !isDownloading {
-            if let savedUrl = SAPlayer.Downloader.getSavedUrl(forRemoteUrl: selectedAudio.url) {
-                SAPlayer.Downloader.deleteDownloaded(withSavedUrl: savedUrl)
+            if let savedUrl = player.downloader.getSavedUrl(forRemoteUrl: selectedAudio.url) {
+                player.downloader.deleteDownloaded(withSavedUrl: savedUrl)
                 selectedAudio.deleteSavedUrl()
                 downloadButton.setTitle("Download", for: .normal)
                 streamButton.isEnabled = true
@@ -321,7 +321,7 @@ class ViewController: UIViewController {
             } else {
                 downloadButton.setTitle("Cancel 0%", for: .normal)
                 isDownloading = true
-                SAPlayer.Downloader.downloadAudio(on: player, withRemoteUrl: selectedAudio.url, completion: { [weak self] url, error in
+                player.downloader.downloadAudio(withRemoteUrl: selectedAudio.url, completion: { [weak self] url, error in
                     guard let self = self else { return }
                     guard error == nil else {
                         DispatchQueue.main.async {
@@ -339,7 +339,7 @@ class ViewController: UIViewController {
                 streamButton.isEnabled = false
             }
         } else {
-            SAPlayer.Downloader.cancelDownload(withRemoteUrl: selectedAudio.url)
+            player.downloader.cancelDownload(withRemoteUrl: selectedAudio.url)
             downloadButton.setTitle("Download", for: .normal)
             streamButton.isEnabled = true
             isDownloading = false
@@ -406,9 +406,9 @@ class ViewController: UIViewController {
 
     @IBAction func sleepSwitched(_: Any) {
         if sleepSwitch.isOn {
-            _ = SAPlayer.Features.SleepTimer.enable(afterDelay: 5.0, on: player)
+            SAPlayer.Features.SleepTimer.enable(afterDelay: 5.0, on: player)
         } else {
-            _ = SAPlayer.Features.SleepTimer.disable()
+            SAPlayer.Features.SleepTimer.disable()
         }
     }
 

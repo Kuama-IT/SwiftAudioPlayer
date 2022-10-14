@@ -26,7 +26,7 @@
 import Foundation
 
 protocol AudioDataDownloadable: AnyObject {
-    init(allowCellular: Bool, progressCallback: @escaping (_ id: ID, _ progress: Double) -> Void, doneCallback: @escaping (_ id: ID, _ error: Error?) -> Void, backgroundDownloadCallback: @escaping () -> Void)
+    init(allowCellular: Bool, withAudioDataManager audioDataManager: AudioDataManager, progressCallback: @escaping (_ id: ID, _ progress: Double) -> Void, doneCallback: @escaping (_ id: ID, _ error: Error?) -> Void, backgroundDownloadCallback: @escaping () -> Void)
 
     var numberOfActive: Int { get }
     var numberOfQueued: Int { get }
@@ -73,7 +73,10 @@ class AudioDownloadWorker: NSObject, AudioDataDownloadable {
         return queuedDownloads.count
     }
 
+    private var audioDataManager: AudioDataManager
+
     required init(allowCellular: Bool,
+                  withAudioDataManager audioDataManager: AudioDataManager,
                   progressCallback: @escaping (_ id: ID, _ progress: Double) -> Void,
                   doneCallback: @escaping (_ id: ID, _ error: Error?) -> Void,
                   backgroundDownloadCallback: @escaping () -> Void)
@@ -83,6 +86,7 @@ class AudioDownloadWorker: NSObject, AudioDataDownloadable {
         completionHandler = doneCallback
         backgroundCompletion = backgroundDownloadCallback
         allowsCellularDownload = allowCellular
+        self.audioDataManager = audioDataManager
 
         super.init()
     }
@@ -178,7 +182,7 @@ extension AudioDownloadWorker: URLSessionDownloadDelegate {
             return
         }
 
-        let destinationUrl = FileStorage.Audio.getUrl(givenId: task.info.id, andFileExtension: fileType)
+        let destinationUrl = FileStorage.Audio.getUrl(givenId: task.info.id, andFileExtension: fileType, in: audioDataManager.downloadDirectory)
         Log.info("Writing download file with id: \(task.info.id) to file named: \(destinationUrl.lastPathComponent)")
 
         // https://stackoverflow.com/questions/20251432/cant-move-file-after-background-download-no-such-file

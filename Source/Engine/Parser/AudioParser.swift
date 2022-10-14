@@ -150,14 +150,16 @@ class AudioParser: AudioParsable {
 
     var streamChangeListenerId: UInt?
 
-    init(withRemoteUrl url: AudioURL, bufferSize: Int, parsedFileAudioFormatCallback: @escaping (AVAudioFormat) -> Void) throws {
+    private var streamingDownloadDirector: StreamingDownloadDirector
+
+    init(withRemoteUrl url: AudioURL, bufferSize: Int, withAudioDataManager audioDataManager: AudioDataManager, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector, parsedFileAudioFormatCallback: @escaping (AVAudioFormat) -> Void) throws {
         self.url = url
         framesPerBuffer = bufferSize
         self.parsedFileAudioFormatCallback = parsedFileAudioFormatCallback
+        self.streamingDownloadDirector = streamingDownloadDirector
+        throttler = AudioThrottler(withRemoteUrl: url, withDelegate: self, withAudioDataManager: audioDataManager, withStreamingDownloadDirector: streamingDownloadDirector)
 
-        throttler = AudioThrottler(withRemoteUrl: url, withDelegate: self)
-
-        streamChangeListenerId = StreamingDownloadDirector.shared.attach { [weak self] progress in
+        streamChangeListenerId = streamingDownloadDirector.attach { [weak self] progress in
             guard let self = self else { return }
             self.networkProgress = progress
 
@@ -180,7 +182,7 @@ class AudioParser: AudioParsable {
 
     deinit {
         if let id = streamChangeListenerId {
-            StreamingDownloadDirector.shared.detach(withID: id)
+            streamingDownloadDirector.detach(withID: id)
         }
     }
 

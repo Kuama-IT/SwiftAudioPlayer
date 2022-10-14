@@ -141,9 +141,14 @@ class AudioStreamEngine: AudioEngine {
         }
     }
 
-    init(withRemoteUrl url: AudioURL, delegate: AudioEngineDelegate?, bitrate: SAPlayerBitrate, engine: AVAudioEngine) {
+    private var streamingDownloadDirector: StreamingDownloadDirector
+
+    init(withRemoteUrl url: AudioURL, delegate: AudioEngineDelegate?, bitrate: SAPlayerBitrate, engine: AVAudioEngine, withAudioClockDirector audioClockDirector: AudioClockDirector, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector, withAudioDataManager audioDataManager: AudioDataManager) {
         Log.info(url)
-        super.init(url: url, delegate: delegate, engineAudioFormat: AudioEngine.defaultEngineAudioFormat, engine: engine)
+
+        self.streamingDownloadDirector = streamingDownloadDirector
+
+        super.init(url: url, delegate: delegate, engineAudioFormat: AudioEngine.defaultEngineAudioFormat, engine: engine, audioClockDirector: audioClockDirector)
 
         switch bitrate {
         case .high:
@@ -153,15 +158,21 @@ class AudioStreamEngine: AudioEngine {
         }
 
         do {
-            converter = try AudioConverter(withRemoteUrl: url, toEngineAudioFormat: AudioEngine.defaultEngineAudioFormat, withPCMBufferSize: PCM_BUFFER_SIZE)
+            converter = try AudioConverter(
+                withRemoteUrl: url,
+                toEngineAudioFormat: AudioEngine.defaultEngineAudioFormat,
+                withPCMBufferSize: PCM_BUFFER_SIZE,
+                withAudioDataManager: audioDataManager,
+                withStreamingDownloadDirector: streamingDownloadDirector
+            )
         } catch {
             delegate?.didError()
         }
 
-        StreamingDownloadDirector.shared.setKey(key)
-        StreamingDownloadDirector.shared.resetCache()
+        streamingDownloadDirector.setKey(key)
+        streamingDownloadDirector.resetCache()
 
-        streamChangeListenerId = StreamingDownloadDirector.shared.attach { [weak self] _ in
+        streamChangeListenerId = streamingDownloadDirector.attach { [weak self] _ in
             guard let self = self else { return }
 
             // polling for buffers when we receive data. This won't be throttled on fresh new audio or seeked audio but in all other cases it most likely will be throttled
@@ -179,7 +190,7 @@ class AudioStreamEngine: AudioEngine {
 
     deinit {
         if let id = streamChangeListenerId {
-            StreamingDownloadDirector.shared.detach(withID: id)
+            streamingDownloadDirector.detach(withID: id)
         }
     }
 

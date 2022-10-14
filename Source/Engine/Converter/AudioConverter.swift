@@ -37,7 +37,7 @@ protocol AudioConvertable {
     var engineAudioFormat: AVAudioFormat { get }
     var initialized: Bool { get }
 
-    init(withRemoteUrl url: AudioURL, toEngineAudioFormat: AVAudioFormat, withPCMBufferSize size: AVAudioFrameCount) throws
+    init(withRemoteUrl url: AudioURL, toEngineAudioFormat: AVAudioFormat, withPCMBufferSize size: AVAudioFrameCount, withAudioDataManager audioDataManager: AudioDataManager, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector) throws
     func pullBuffer() throws -> AVAudioPCMBuffer
     func pollPredictedDuration() -> Duration?
     func pollNetworkAudioAvailabilityRange() -> (Needle, Duration)
@@ -86,24 +86,30 @@ class AudioConverter: AudioConvertable {
     var converterBuffer: UnsafeMutableRawPointer?
     var converterDescriptions: UnsafeMutablePointer<AudioStreamPacketDescription>?
 
-    required init(withRemoteUrl url: AudioURL, toEngineAudioFormat: AVAudioFormat, withPCMBufferSize size: AVAudioFrameCount) throws {
+    required init(withRemoteUrl url: AudioURL, toEngineAudioFormat: AVAudioFormat, withPCMBufferSize size: AVAudioFrameCount, withAudioDataManager audioDataManager: AudioDataManager, withStreamingDownloadDirector streamingDownloadDirector: StreamingDownloadDirector) throws {
         engineAudioFormat = toEngineAudioFormat
         pcmBufferSize = size
 
         do {
-            parser = try AudioParser(withRemoteUrl: url, bufferSize: Int(size), parsedFileAudioFormatCallback: {
-                [weak self] (fileAudioFormat: AVAudioFormat) in
-                guard let strongSelf = self else { return }
+            parser = try AudioParser(
+                withRemoteUrl: url,
+                bufferSize: Int(size),
+                withAudioDataManager: audioDataManager,
+                withStreamingDownloadDirector: streamingDownloadDirector,
+                parsedFileAudioFormatCallback: {
+                    [weak self] (fileAudioFormat: AVAudioFormat) in
+                    guard let strongSelf = self else { return }
 
-                let sourceFormat = fileAudioFormat.streamDescription
-                let destinationFormat = strongSelf.engineAudioFormat.streamDescription
-                let result = AudioConverterNew(sourceFormat, destinationFormat, &strongSelf.converter)
+                    let sourceFormat = fileAudioFormat.streamDescription
+                    let destinationFormat = strongSelf.engineAudioFormat.streamDescription
+                    let result = AudioConverterNew(sourceFormat, destinationFormat, &strongSelf.converter)
 
-                guard result == noErr else {
-                    Log.monitor(ConverterError.unableToCreateConverter(result).errorDescription as Any)
-                    return
+                    guard result == noErr else {
+                        Log.monitor(ConverterError.unableToCreateConverter(result).errorDescription as Any)
+                        return
+                    }
                 }
-            })
+            )
         } catch {
             throw ConverterError.failedToCreateParser
         }

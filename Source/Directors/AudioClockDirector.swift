@@ -26,8 +26,7 @@
 import CoreMedia
 import Foundation
 
-class AudioClockDirector {
-    static let shared = AudioClockDirector()
+public class AudioClockDirector {
     private var currentAudioKey: Key?
 
     private var depNeedleClosures: DirectorThreadSafeClosuresDeprecated<Needle> = DirectorThreadSafeClosuresDeprecated()
@@ -40,7 +39,7 @@ class AudioClockDirector {
     private var playingStatusClosures: DirectorThreadSafeClosures<SAPlayingStatus> = DirectorThreadSafeClosures()
     private var bufferClosures: DirectorThreadSafeClosures<SAAudioAvailabilityRange> = DirectorThreadSafeClosures()
 
-    private init() {}
+    init() {}
 
     func setKey(_ key: Key) {
         currentAudioKey = key

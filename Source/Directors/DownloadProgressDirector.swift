@@ -25,13 +25,11 @@
 
 import Foundation
 
-class DownloadProgressDirector {
-    static let shared = DownloadProgressDirector()
-
+public class DownloadProgressDirector {
     var closures: DirectorThreadSafeClosuresDeprecated<Double> = DirectorThreadSafeClosuresDeprecated()
 
-    private init() {
-        AudioDataManager.shared.attach { [weak self] key, progress in
+    init(audioDataManager: AudioDataManager) {
+        audioDataManager.attach { [weak self] key, progress in
             self?.closures.broadcast(key: key, payload: progress)
         }
     }

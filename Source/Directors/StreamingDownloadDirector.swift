@@ -24,13 +24,12 @@
 
 import Foundation
 
-class StreamingDownloadDirector {
-    static let shared = StreamingDownloadDirector()
+public class StreamingDownloadDirector {
     private var currentAudioKey: Key?
 
     var closures: DirectorThreadSafeClosures<Double> = DirectorThreadSafeClosures()
 
-    private init() {}
+    init() {}
 
     func setKey(_ key: Key) {
         currentAudioKey = key

@@ -65,14 +65,14 @@ struct FileStorage {
 
 extension FileStorage {
     struct Audio {
-        private init() {}
+        private var audioDataManager: AudioDataManager
 
-        private static var directory: FileManager.SearchPathDirectory {
-            return AudioDataManager.shared.downloadDirectory
+        init(audioDataManager: AudioDataManager) {
+            self.audioDataManager = audioDataManager
         }
 
-        static func isStored(_ id: ID) -> Bool {
-            guard let url = locate(id)?.path else {
+        static func isStored(_ id: ID, in directory: FileManager.SearchPathDirectory) -> Bool {
+            guard let url = locate(id, in: directory)?.path else {
                 return false
             }
 
@@ -80,15 +80,15 @@ extension FileStorage {
             return FileManager.default.fileExists(atPath: url)
         }
 
-        static func delete(_ id: ID) {
-            guard let url = locate(id) else {
+        static func delete(_ id: ID, in directory: FileManager.SearchPathDirectory) {
+            guard let url = locate(id, in: directory) else {
                 Log.warn("trying to delete audio file that doesn't exist with id: \(id)")
                 return
             }
             return FileStorage.delete(url)
         }
 
-        static func write(_ id: ID, fileExtension: String, data: Data) {
+        static func write(_ id: ID, fileExtension: String, data: Data, in directory: FileManager.SearchPathDirectory) {
             do {
                 let url = FileStorage.getUrl(givenAName: getAudioFileName(id, fileExtension: fileExtension), inDirectory: directory)
                 try data.write(to: url)
@@ -97,8 +97,8 @@ extension FileStorage {
             }
         }
 
-        static func read(_ id: ID) -> Data? {
-            guard let url = locate(id) else {
+        static func read(_ id: ID, in directory: FileManager.SearchPathDirectory) -> Data? {
+            guard let url = locate(id, in: directory) else {
                 Log.debug("Trying to get data for audio file that doesn't exist: \(id)")
                 return nil
             }
@@ -106,14 +106,14 @@ extension FileStorage {
             return data
         }
 
-        static func locate(_ id: ID) -> URL? {
+        static func locate(_ id: ID, in directory: FileManager.SearchPathDirectory) -> URL? {
             let folderUrls = FileManager.default.urls(for: directory, in: .userDomainMask)
             guard folderUrls.count != 0 else { return nil }
 
             if let urls = try? FileManager.default.contentsOfDirectory(at: folderUrls[0], includingPropertiesForKeys: nil) {
                 for url in urls {
                     if url.absoluteString.contains(id) && url.pathExtension != "" {
-                        _ = getUrl(givenId: id, andFileExtension: url.pathExtension)
+                        _ = getUrl(givenId: id, andFileExtension: url.pathExtension, in: directory)
                         return url
                     }
                 }
@@ -121,7 +121,7 @@ extension FileStorage {
             return nil
         }
 
-        static func getUrl(givenId id: ID, andFileExtension fileExtension: String) -> URL {
+        static func getUrl(givenId id: ID, andFileExtension fileExtension: String, in directory: FileManager.SearchPathDirectory) -> URL {
             let url = FileStorage.getUrl(givenAName: getAudioFileName(id, fileExtension: fileExtension), inDirectory: directory)
             return url
         }

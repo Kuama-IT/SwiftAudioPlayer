@@ -48,6 +48,8 @@ class AudioEngine: AudioEngineProtocol {
     var playerNode: AVAudioPlayerNode!
     private var engineInvalidated: Bool = false
 
+    private var audioClockDirector: AudioClockDirector
+
     static let defaultEngineAudioFormat: AVAudioFormat = .init(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 2, interleaved: false)!
 
     var state: TimerState = .suspended
@@ -58,16 +60,16 @@ class AudioEngine: AudioEngineProtocol {
 
     var needle: Needle = -1 {
         didSet {
-            if needle >= 0 && oldValue != needle {
-                AudioClockDirector.shared.needleTick(key, needle: needle)
+            if needle >= 0, oldValue != needle {
+                audioClockDirector.needleTick(key, needle: needle)
             }
         }
     }
 
     var duration: Duration = -1 {
         didSet {
-            if duration >= 0 && oldValue != duration {
-                AudioClockDirector.shared.durationWasChanged(key, duration: duration)
+            if duration >= 0, oldValue != duration {
+                audioClockDirector.durationWasChanged(key, duration: duration)
             }
         }
     }
@@ -78,16 +80,17 @@ class AudioEngine: AudioEngineProtocol {
                 return
             }
 
-            AudioClockDirector.shared.audioPlayingStatusWasChanged(key, status: status)
+            audioClockDirector.audioPlayingStatusWasChanged(key, status: status)
         }
     }
 
     var bufferedSecondsDebouncer: SAAudioAvailabilityRange = .init(startingNeedle: 0.0, durationLoadedByNetwork: 0.0, predictedDurationToLoad: Double.greatestFiniteMagnitude, isPlayable: false)
+
     var bufferedSeconds: SAAudioAvailabilityRange = .init(startingNeedle: 0.0, durationLoadedByNetwork: 0.0, predictedDurationToLoad: Double.greatestFiniteMagnitude, isPlayable: false) {
         didSet {
             if bufferedSeconds.startingNeedle == 0.0, bufferedSeconds.durationLoadedByNetwork == 0.0 {
                 bufferedSecondsDebouncer = bufferedSeconds
-                AudioClockDirector.shared.changeInAudioBuffered(key, buffered: bufferedSeconds)
+                audioClockDirector.changeInAudioBuffered(key, buffered: bufferedSeconds)
                 return
             }
 
@@ -101,17 +104,18 @@ class AudioEngine: AudioEngineProtocol {
             }
 
             bufferedSecondsDebouncer = bufferedSeconds
-            AudioClockDirector.shared.changeInAudioBuffered(key, buffered: bufferedSeconds)
+            audioClockDirector.changeInAudioBuffered(key, buffered: bufferedSeconds)
         }
     }
 
     private var audioModifiers: [AVAudioUnit]?
 
-    init(url: AudioURL, delegate: AudioEngineDelegate?, engineAudioFormat: AVAudioFormat, engine: AVAudioEngine) {
+    init(url: AudioURL, delegate: AudioEngineDelegate?, engineAudioFormat: AVAudioFormat, engine: AVAudioEngine, audioClockDirector: AudioClockDirector) {
         key = url.key
         self.delegate = delegate
 
         self.engine = engine
+        self.audioClockDirector = audioClockDirector
         playerNode = AVAudioPlayerNode()
 
         initHelper(engineAudioFormat)

@@ -44,10 +44,15 @@ class SAPlayerPresenter {
     var playingStatusRef: UInt = 0
     var audioQueue: [SAAudioQueueItem] = []
 
-    init(delegate: SAPlayerDelegate?) {
-        self.delegate = delegate
+    var audioClockDirector: AudioClockDirector
+    var audioQueueDirector: AudioQueueDirector
 
-        durationRef = AudioClockDirector.shared.attachToChangesInDuration(closure: { [weak self] duration in
+    init(delegate: SAPlayerDelegate?, audioClockDirector: AudioClockDirector, audioQueueDirector: AudioQueueDirector) {
+        self.delegate = delegate
+        self.audioClockDirector = audioClockDirector
+        self.audioQueueDirector = audioQueueDirector
+
+        durationRef = audioClockDirector.attachToChangesInDuration(closure: { [weak self] duration in
             guard let self = self else { throw DirectorError.closureIsDead }
 
             self.delegate?.updateLockScreenPlaybackDuration(duration: duration)
@@ -56,14 +61,14 @@ class SAPlayerPresenter {
             self.delegate?.setLockScreenInfo(withMediaInfo: self.delegate?.mediaInfo, duration: duration)
         })
 
-        needleRef = AudioClockDirector.shared.attachToChangesInNeedle(closure: { [weak self] needle in
+        needleRef = audioClockDirector.attachToChangesInNeedle(closure: { [weak self] needle in
             guard let self = self else { throw DirectorError.closureIsDead }
 
             self.needle = needle
             self.delegate?.updateLockScreenElapsedTime(needle: needle)
         })
 
-        playingStatusRef = AudioClockDirector.shared.attachToChangesInPlayingStatus(closure: { [weak self] isPlaying in
+        playingStatusRef = audioClockDirector.attachToChangesInPlayingStatus(closure: { [weak self] isPlaying in
             guard let self = self else { throw DirectorError.closureIsDead }
 
             if isPlaying == .paused, self.shouldPlayImmediately {
@@ -93,7 +98,7 @@ class SAPlayerPresenter {
 
     func handleClear() {
         delegate?.clearEngine()
-        AudioClockDirector.shared.resetCache()
+        audioClockDirector.resetCache()
 
         needle = nil
         duration = nil
@@ -118,8 +123,8 @@ class SAPlayerPresenter {
         key = url.key
         urlKeyMap[url.key] = url
 
-        AudioClockDirector.shared.setKey(url.key)
-        AudioClockDirector.shared.resetCache()
+        audioClockDirector.setKey(url.key)
+        audioClockDirector.resetCache()
     }
 
     func handleQueueStreamedAudio(withRemoteUrl url: URL, mediaInfo: SALockScreenInfo?, bitrate: SAPlayerBitrate) {
@@ -149,7 +154,7 @@ class SAPlayerPresenter {
 
     func handleStopStreamingAudio() {
         delegate?.clearEngine()
-        AudioClockDirector.shared.resetCache()
+        audioClockDirector.resetCache()
     }
 }
 
@@ -230,7 +235,7 @@ extension SAPlayerPresenter {
         let nextAudioURL = audioQueue.removeFirst()
 
         Log.info("getting ready to play \(nextAudioURL)")
-        AudioQueueDirector.shared.changeInQueue(url: nextAudioURL.url)
+        audioQueueDirector.changeInQueue(url: nextAudioURL.url)
 
         handleClear()
 

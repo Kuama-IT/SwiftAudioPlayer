@@ -54,11 +54,9 @@ protocol AudioDataManagable {
     func deleteDownload(withLocalURL url: URL)
 }
 
-class AudioDataManager: AudioDataManagable {
+public class AudioDataManager: AudioDataManagable {
     var allowCellular: Bool = true
     var downloadDirectory: FileManager.SearchPathDirectory = .documentDirectory
-
-    static let shared: AudioDataManagable = AudioDataManager()
 
     // When we're streaming we want to stagger the size of data push up from disk to prevent the phone from freezing. We push up data of this chunk size every couple milliseconds.
     private let MAXIMUM_DATA_SIZE_TO_PUSH = 37744
@@ -84,9 +82,10 @@ class AudioDataManager: AudioDataManagable {
         return downloadWorker.numberOfActive
     }
 
-    private init() {
+    public init() {
         downloadWorker = AudioDownloadWorker(
             allowCellular: allowCellular,
+            withAudioDataManager: self,
             progressCallback: downloadProgressListener,
             doneCallback: downloadDoneListener,
             backgroundDownloadCallback: backgroundCompletion
@@ -128,7 +127,7 @@ class AudioDataManager: AudioDataManagable {
 
 extension AudioDataManager {
     func startStream(withRemoteURL url: AudioURL, callback: @escaping (StreamProgressPTO) -> Void) {
-        if let data = FileStorage.Audio.read(url.key) {
+        if let data = FileStorage.Audio.read(url.key, in: downloadDirectory) {
             let dto = StreamProgressDTO(progress: 1.0, data: data, totalBytesExpected: Int64(data.count))
             callback(StreamProgressPTO(dto: dto))
             return
@@ -173,13 +172,13 @@ extension AudioDataManager {
 
 extension AudioDataManager {
     func getPersistedUrl(withRemoteURL url: AudioURL) -> URL? {
-        return FileStorage.Audio.locate(url.key)
+        return FileStorage.Audio.locate(url.key, in: downloadDirectory)
     }
 
     func startDownload(withRemoteURL url: AudioURL, completion: @escaping (URL, Error?) -> Void) {
         let key = url.key
 
-        if let savedUrl = FileStorage.Audio.locate(key), FileStorage.Audio.isStored(key) {
+        if let savedUrl = FileStorage.Audio.locate(key, in: downloadDirectory), FileStorage.Audio.isStored(key, in: downloadDirectory) {
             globalDownloadProgressCallback(key, 1.0)
             completion(savedUrl, nil)
             return
@@ -201,7 +200,7 @@ extension AudioDataManager {
 
     func cancelDownload(withRemoteURL url: AudioURL) {
         downloadWorker.stop(withID: url.key, callback: nil)
-        FileStorage.Audio.delete(url.key)
+        FileStorage.Audio.delete(url.key, in: downloadDirectory)
     }
 
     func deleteDownload(withLocalURL url: URL) {

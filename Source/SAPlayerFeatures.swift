@@ -144,7 +144,7 @@ public extension SAPlayer {
 
                 guard playingStatusId == nil else { return }
 
-                playingStatusId = SAPlayer.Updates.PlayingStatus.subscribe { status in
+                playingStatusId = SAPlayer.Updates.PlayingStatus(audioClockDirector: player.audioClockDirector).subscribe { status in
                     if status == .ended, enabled {
                         player.seekTo(seconds: 0.0)
                         player.play()
